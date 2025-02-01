@@ -1,0 +1,152 @@
+import argparse
+# from utils import str2bool
+import sys
+from datetime import datetime
+
+
+def str2bool(v):
+    return v.lower() == "true"
+
+
+def set_up_fold(args):
+    # if args.task in ['dd', 'enzymes', 'proteins', 'reddit', 'collab']:
+    if args.dataset in ['dd', 'enzymes', 'proteins', 'reddit', 'collab']: # cole change
+        args.train_file = (args.train_file % args.fold)
+        args.dev_file = (args.dev_file % args.fold)
+        args.test_file = (args.test_file % args.fold)
+
+
+def add_params(parser):
+    ##Cole added args
+    parser.add_argument('--is_inductive', type=int, default=0)
+    parser.add_argument('--is_regression', type=int, default=0)
+    parser.add_argument("--n_classes", type=int, default=0)
+    ##training config
+    parser.add_argument('--lr', type=float, default=0.01)
+    parser.add_argument('--dropout', type=float, default=0.0)
+    parser.add_argument('--cuda', type=float, default=0)
+    parser.add_argument('--epochs', type=int, default=5000)
+    parser.add_argument('--weight-decay', type=float, default=0.0)
+    parser.add_argument('--optimizer', type=str,
+                        default='Adam', choices=['Adam', 'RiemannianAdam'])
+    parser.add_argument('--momentum', type=float, default=0.999)
+    parser.add_argument('--patience', type=int, default=100)
+    parser.add_argument('--sweep-c', type=float, default=0)
+    parser.add_argument('--lr-reduce-freq', type=float, default=None)
+    parser.add_argument('--gamma', type=float, default=0.5)
+    parser.add_argument('--print-epoch', type=bool, default=True)
+    parser.add_argument('--grad-clip', type=float, default=None)
+    parser.add_argument('--min-epochs', type=int, default=100)
+
+
+    ##model_config
+    parser.add_argument('--model', type=str, default='HGCN', choices=['Shallow', 'MLP', 'HNN', 'GCN', 'GAT', 'HGCN'])
+    parser.add_argument('--dim', type=int, default=16)
+    parser.add_argument('--manifold', type=str, default='PoincareBall', choices=['Euclidean', 'Hyperboloid', 'PoincareBall'])
+    parser.add_argument('--c', default=1.0)
+    parser.add_argument('--r', default=2.)
+    parser.add_argument('--t', default=1.)
+    parser.add_argument('--pretrained-embeddings', default=None)
+    parser.add_argument('--pos-weight', type=int, default=0)
+    parser.add_argument('--num-layers', type=int, default=2)
+    parser.add_argument('--bias', type=int, default=1)
+    parser.add_argument('--act', type=str, default='relu', choices=['relu','leaky_relu', 'elu', 'selu'])
+    parser.add_argument('--n-heads', type=int, default=4)
+    parser.add_argument('--alpha', type=float, default=.2)
+    parser.add_argument('--double-precision', type=int, default=0)
+    parser.add_argument('--use-att', type=int, default=0)
+    parser.add_argument('--local-agg', type=int, default=0)
+
+    ##data_config
+
+    parser.add_argument('--use-feats', type=int, default=1)
+    parser.add_argument('--normalize-feats', type=int, default=1)
+    parser.add_argument('--normalize-adj', type=int, default=1)
+    parser.add_argument('--val-prop', type=int, default=.05)
+    parser.add_argument('--test-prop', type=int, default=.1)
+
+
+def overwrite_with_manual(args,manual_args):
+    if manual_args:
+        # print(manual_args,'should have a few')
+        for k,v in manual_args.items():
+
+            if hasattr(args,k):
+                # print('matching new to old: {} ({}->{})'.format(k,getattr(args,k),v))
+                # print(k,v)
+                setattr(args,k,v)
+                # print(getattr(args,k))
+            else:
+                # print('no match: {}={}'.format(k,v))
+                # print(k,v)
+                setattr(args,k,v)
+                # print(getattr(args,k))
+    return args
+
+
+
+def parse_default_args(manual_args=None):
+    """
+couldn't find a cleaner way to add in args without commandline for hyperparam search -Cole
+manual_args will overwrite default if they exist
+"""
+    parser = argparse.ArgumentParser(description='RiemannianGNN')
+    # raise Exception('First')
+    # parser.add_argument('--name', type=str, default='{:%Y_%m_%d_%H_%M_%S_%f}'.format(datetime.now()))
+    parser.add_argument('--task', type=str, default='', choices=['lp', 'nc', '', 'ds'])
+
+    parser.add_argument('--dataset', type=str, choices=['cora', 'pubmed', 'disease_nc', 'disease_lp', 'airport',
+                                                        'synthetic', 'proteins', 'meg', 'enron', 'meg_ln'
+                                                        # should add more to include transductive
+                                                        ])
+    parser.add_argument('--use_pretrained', type=int, default=0)
+
+    # parser.add_argument('--seed', type=int, default=int(time.time()))
+    # parser.add_argument('--save_dir', type=str, default=os.path.join(os.getcwd(),'results'))
+    parser.add_argument('--save_dir', type=str, default=None)
+    parser.add_argument('--save_id', default='')
+    parser.add_argument('--save', default=1)
+    parser.add_argument('--save_model', default=False)
+
+    # parser.add_argument('--batch_size', type=int, default=-1)
+    # for distributed training
+    parser.add_argument('--log-freq', type=int, default=5)
+    # parser.add_argument('--eval-freq', type=int,default=2)
+
+    ## can ignore these two
+    parser.add_argument("--local_rank", type=int)
+    parser.add_argument("--distributed_method", default='None', choices=['None', None, 'multi_gpu', 'slurm'])
+    parser.add_argument("--max_per_epoch", type=int, default=-1)
+
+    # parser.add_argument("--seed", type=int, default=1234)
+    parser.add_argument("--split-seed", type=int, default=1234)
+    # parser.add_argument("--seed", type=int, default=1234)
+
+    args, _ = parser.parse_known_args()
+
+    overwrite_with_manual(args, manual_args)
+    print(args.task, 'should match manual')
+    assert args.task
+
+    # if args.dataset == 'meg' and args.task in ('lp', 'ds'):
+    #     MEGLpParams.add_params(parser)
+    # elif args.dataset == 'meg_ln' and args.task in ('lp', 'ds'):
+    #     MEGLinkNodeLpParams.add_params(parser)
+    # elif args.dataset == 'enron' and args.task in ('lp', 'ds'):
+    #     EnronLpParams.add_params(parser)
+    # else:
+    #     raise Exception('need to pick proper kind of dataset and task: {} {}'.format(args.dataset, args.task))
+    add_params(parser)
+    args, _ = parser.parse_known_args()
+    args = overwrite_with_manual(args, manual_args)  ## we must do twice bc we only edited args, not the parser
+
+    # args.use_batch = True if args.batch_size>0 else False
+
+    print(args.task, '3')
+    args.train_only = 1 if args.task == 'ds' else 0
+    set_up_fold(args)
+    # add_embed_size(args)
+    args.device = 'cuda'
+
+    return args
+

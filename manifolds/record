@@ -1,0 +1,198 @@
+epoch150  domain4
+valid_acc: 0.6976...valid_sen: 0.6509...valid_spec: 0.7411...valid_f1: 0.6635
+
+epoch200  domain4
+valid_acc: 0.7143...valid_sen: 0.6419...valid_spec: 0.7860...valid_f1: 0.6722
+
+epoch250  domain4
+valid_acc: 0.7048...valid_sen: 0.6773...valid_spec: 0.7309...valid_f1: 0.6778
+
+epoch200 domain4 将学习的adj投影到流形空间
+valid_acc: 0.7071...valid_sen: 0.6358...valid_spec: 0.7774...valid_f1: 0.6644
+best acc 73.096%
+
+
+epoch200 domain4 将学习的adj投影到流形空间 社区conv1d之后的使用GElu（以往是Tanh）
+valid_acc: 0.7071...valid_sen: 0.6358...valid_spec: 0.7774...valid_f1: 0.6644
+
+epoch200 domain4 将学习的adj投影到流形空间 社区conv1d之后SELU（以往是Tanh）
+valid_acc: 0.7167...valid_sen: 0.6375...valid_spec: 0.7945...valid_f1: 0.6729
+best 73.332%
+
+epoch200 domain4 使用hyperatten来学习edge 社区conv1d之后SELU（以往是Tanh）
+valid_acc: 0.7119...valid_sen: 0.6519...valid_spec: 0.7762...valid_f1: 0.6726
+best 74.286%
+
+epoch200 all_data 使用hyperatten来学习edge 社区conv1d之后SELU（以往是Tanh）
+valid_acc: 0.6852...valid_sen: 0.6231...valid_spec: 0.7364...valid_f1: 0.6426
+best:71.478%
+
+
+使用简单的mmd进行实验，测试集为每个站点的1/5，epoch200，target为NYU：
+valid_acc: 0.7240...valid_sen: 0.7005...valid_spec: 0.7467...valid_f1: 0.7010
+best: 76.224  5fold:7209   7738   7143  7831  8072
+
+使用四个站点的site label, 进行域对齐，使用MCC对域分类加权
+valid_acc: 0.7595...valid_sen: 0.7038...valid_spec: 0.8134...valid_f1: 0.7283
+valid_acc_adj: 0.7833...valid_sen_adj: 0.7044...valid_spec_adj: 0.8497...valid_f1_adj: 0.7475
+
+
+epoch300:
+best：7349   7952    5833    7619     7442   avg72.39
+
+
+后续修改点：
+1.去点ROI尺度的GCN
+效果变差60.98
+best: 6747  7229  6190  6190  6512  avg:65.736%
+
+修改邻接矩阵为
+individual top15%:
+new fold
+
+valid_acc: 0.6365...valid_sen: 0.6744...valid_spec: 0.6152...valid_f1: 0.6098
+valid_acc_best: 0.7420...valid_sen_best: 0.7092...valid_spec_best: 0.7703...valid_f1_best: 0.6976
+
+去掉mcc:
+valid_acc: 0.6365...valid_sen: 0.6744...valid_spec: 0.6152...valid_f1: 0.6098
+valid_acc_best: 0.7420...valid_sen_best: 0.7092...valid_spec_best: 0.7703...valid_f1_best: 0.6976
+加大mmd权重：
+valid_acc: 0.6247...valid_sen: 0.6861...valid_spec: 0.5852...valid_f1: 0.6062
+valid_acc_best: 0.7420...valid_sen_best: 0.6958...valid_spec_best: 0.7794...valid_f1_best: 0.6928
+
+使用域对抗：
+valid_acc: 0.5958...valid_sen: 0.7110...valid_spec: 0.5118...valid_f1: 0.6016
+valid_acc_best: 0.7067...valid_sen_best: 0.7338...valid_spec_best: 0.6886...valid_f1_best: 0.6747
+
+去掉mmd:
+valid_acc: 0.6247...valid_sen: 0.6869...valid_spec: 0.5866...valid_f1: 0.6062
+valid_acc_best: 0.7361...valid_sen_best: 0.7092...valid_spec_best: 0.7608...valid_f1_best: 0.6916
+
+增加batch size=64
+valid_acc: 0.6074...valid_sen: 0.7228...valid_spec: 0.5235...valid_f1: 0.6107
+valid_acc_best: 0.6892...valid_sen_best: 0.6946...valid_spec_best: 0.6866...valid_f1_best: 0.6476
+
+源域进行域对抗，同时使用mmd对齐源域和目标域：
+valid_acc: 0.6306...valid_sen: 0.6707...valid_spec: 0.6110...valid_f1: 0.6021
+valid_acc_best: 0.7126...valid_sen_best: 0.7487...valid_spec_best: 0.6836...valid_f1_best: 0.6868
+
+使用Fscore_trainset 15% 以及源域域对抗和源域目标域的mmd：-----------这里的邻接矩阵忘了是在individual 15%的矩阵上进行的Fscore 15%
+xshell上跑的是hyplinear，自己电脑跑的是源域域对抗的euc linear:
+域对抗hyplinear：valid_acc: 0.6192...valid_sen: 0.7981...valid_spec: 0.4931...valid_f1: 0.6401
+valid_acc_best: 0.7069...valid_sen_best: 0.7645...valid_spec_best: 0.6637...valid_f1_best: 0.6855
+
+域对抗euc linear：
+valid_acc: 0.6072...valid_sen: 0.7022...valid_spec: 0.5332...valid_f1: 0.5962
+valid_acc_best: 0.7832...valid_sen_best: 0.7102...valid_spec_best: 0.8162...valid_f1_best: 0.7232
+
+
+使用KNN——每个节点保留15个边，每一折的效果比较稳
+valid_acc: 0.6134...valid_sen: 0.6792...valid_spec: 0.5568...valid_f1: 0.5939
+valid_acc_best: 0.7133...valid_sen_best: 0.6620...valid_spec_best: 0.7396...valid_f1_best: 0.6560
+
+KNN-15不使用源域对抗：
+valid_acc_best: 0.7192...valid_sen_best: 0.6787...valid_spec_best: 0.7396...valid_f1_best: 0.6666
+
+修改的正确的Fscore15%，不使用源域对抗
+valid_acc_best: 0.7304...valid_sen_best: 0.6308...valid_spec_best: 0.7891...valid_f1_best: 0.6553
+
+修改的正确的Fscore15%，加上源域对抗：
+valid_acc_best: 0.7010...valid_sen_best: 0.6969...valid_spec_best: 0.7060...valid_f1_best: 0.6614
+
+修改的Fscore15%,+mmd+SDA+node adj标准化和注意力：
+valid_acc_best: 0.6894...valid_sen_best: 0.6823...valid_spec_best: 0.6990...valid_f1_best: 0.6475
+
+----------！！！！！！！！以前的Fscore都使用错误了，只保存了上三角
+
+单独使用fscore15%和individual15效果69%
+
+individual 15%, 使用mmd_rbf对齐社区网络特征：
+valid_acc: 0.6018...valid_sen: 0.6085...valid_spec: 0.5915...valid_f1: 0.5620
+valid_acc_best: 0.7012...valid_sen_best: 0.6329...valid_spec_best: 0.7469...valid_f1_best: 0.6329
+
+fscore15% prototype:
+validtype_acc_best: 0.7600...validtype_sen_best: 0.5888...validtype_spec_best: 0.8595...validtype_f1_best: 0.6456
+global comm adj:
+valid_acc_best: 0.6894...valid_sen_best: 0.6657...valid_spec_best: 0.7039...valid_f1_best: 0.6420
+validtype_acc_best: 0.7659...validtype_sen_best: 0.5353...validtype_spec_best: 0.9264...validtype_f1_best: 0.6442
+
+fscore10% prototype, comm adj--global atten:
+valid_acc_best: 0.6837...valid_sen_best: 0.6769...valid_spec_best: 0.6817...valid_f1_best: 0.6428
+validtype_acc_best: 0.7484...validtype_sen_best: 0.4672...validtype_spec_best: 0.9476...validtype_f1_best: 0.5936
+
+
+individual 10% : 此时都是hypatten作为comm adj构建
+valid_acc_best: 0.6718...valid_sen_best: 0.6687...valid_spec_best: 0.6745...valid_f1_best: 0.6291
+validtype_acc_best: 0.7482...validtype_sen_best: 0.5683...validtype_spec_best: 0.8599...validtype_f1_best: 0.6357
+
+individual 10% : 此时是global_atten作为comm adj构建
+valid_acc_best: 0.6892...valid_sen_best: 0.6887...valid_spec_best: 0.6839...valid_f1_best: 0.6459
+validtype_acc_best: 0.7657...validtype_sen_best: 0.6874...validtype_spec_best: 0.8114...validtype_f1_best: 0.7041
+
+individual 10% : 此时是global_atten作为comm adj构建 w/o mmd_poincare:
+valid_acc_best: 0.6834...valid_sen_best: 0.7158...valid_spec_best: 0.6532...valid_f1_best: 0.6534
+validtype_acc_best: 0.7422...validtype_sen_best: 0.6158...validtype_spec_best: 0.8409...validtype_f1_best: 0.6539
+
+all data: 此时是global_atten作为comm adj构建:
+valid_acc_best: 0.7080...valid_sen_best: 0.6266...valid_spec_best: 0.7752...valid_f1_best: 0.6601
+validtype_acc_best: 0.7205...validtype_sen_best: 0.6600...validtype_spec_best: 0.7669...validtype_f1_best: 0.6809
+
+
+individual 15%  此时是global_atten作为comm adj构建
+valid_acc_best: 0.7010...valid_sen_best: 0.6669...valid_spec_best: 0.7256...valid_f1_best: 0.6498
+validtype_acc_best: 0.7363...validtype_sen_best: 0.6683...validtype_spec_best: 0.7876...validtype_f1_best: 0.6717
+
+KNN15%:
+valid_acc_best: 0.7010...valid_sen_best: 0.7065...valid_spec_best: 0.6948...valid_f1_best: 0.6608
+validtype_acc_best: 0.7363...validtype_sen_best: 0.6207...validtype_spec_best: 0.8176...validtype_f1_best: 0.6594
+
+
+
+
+
+
+individual top10%
+非常差，第二折测试集55左右准确率
+
+F_score_trainset: w/o mmd 10%
+epoch 250 valid_acc: 0.6236...valid_sen: 0.6522...valid_spec: 0.6019...valid_f1: 0.6138
+valid_acc_best: 0.6929...valid_sen_best: 0.7058...valid_spec_best: 0.0000...valid_f1_best: 0.6707
+15%：
+valid_acc: 0.6359...valid_sen: 0.6492...valid_spec: 0.6275...valid_f1: 0.6216
+valid_acc_best: 0.6812...valid_sen_best: 0.6941...valid_spec_best: 0.6696...valid_f1_best: 0.6672
+
+comm_adj修改为全局adj atten：
+valid_acc: 0.6453...valid_sen: 0.6642...valid_spec: 0.6324...valid_f1: 0.6332
+valid_acc_best: 0.6835...valid_sen_best: 0.6697...valid_spec_best: 0.6976...valid_f1_best: 0.6609
+
+node_GCN的adj加入全局注意力：且邻接矩阵为Fscore trainset 30%
+valid_acc: 0.6547...valid_sen: 0.6847...valid_spec: 0.6333...valid_f1: 0.6454
+valid_acc_best: 0.6859...valid_sen_best: 0.6633...valid_spec_best: 0.7062...valid_f1_best: 0.6609
+
+plus mcc:
+mcc_lambda=1.0, temp=2.0
+
+
+四个站点都参加训练，Fscore_edge只包含训练集的20%的阈值，epoch200，使用域对抗+mcc:
+valid_acc: 0.6595...valid_sen: 0.5753...valid_spec: 0.7353...valid_f1: 0.5971
+valid_acc_best: 0.7119...valid_sen_best: 0.6010...valid_spec_best: 0.8052...valid_f1_best: 0.6523
+
+
+NYU作为target，edge为individual 15%, epoch250, Hmmd
+valid_acc: 0.6544...valid_sen: 0.6356...valid_spec: 0.6731...valid_f1: 0.6268
+valid_acc_best: 0.6904...valid_sen_best: 0.6585...valid_spec_best: 0.7146...valid_f1_best: 0.6562
+
+
+
+2.修改mmd    wmmd+cmmd   mcc  伪标签
+
+
+3.增加原型学习
+
+
+4.修改测试集划分（全为target数据）
+
+
+潜在问题 target前两batch循环使用
+
+
