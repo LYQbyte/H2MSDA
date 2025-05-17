@@ -45,16 +45,16 @@ def confusion(g_turth, predictions):
 
 
 def gradient_avg_mask(Fc_all, k, mask=False, node_num=116):
-    # Fc_all shape: num 116 116
-    # 聚类为k个簇
+    ##  Fc_all shape: num 116 116
+    ##  k clusters----------对于欧氏空间的功能连接网络，直接使用下面的四行代码获取功能梯度，对于双曲面空间的功能梯度需要自行定义函数计算
     # avg_Fc = np.sum(Fc_all, axis=0)/len(Fc_all)
     # gm1 = GradientMaps(n_components=2,  approach='dm', kernel='cosine', random_state=42)
     # gm1.fit(avg_Fc)
     # gradient = gm1.gradients_
-    gradient = np.load("/SD1/luoyq/shuffle_good/gradient_hyper_spear.npy")[:, 0:2]   #   /SD1/luoyq/ABIDE_site_data/bs_site_gradient_hyper.npy
+    gradient = np.load("./gradient_hyper_spear.npy")[:, 0:2]   #   /SD1/luoyq/ABIDE_site_data/bs_site_gradient_hyper.npy
     y_pred = KMeans(n_clusters=k, init="k-means++", random_state=1).fit_predict(gradient)
     # y_pred = consensus_clustering(gradient, n_clusters=k, n_kmeans=5)
-    # gmm = GMM(n_components=k, random_state=1).fit(gradient)  # 指定聚类中心个数为4
+    # gmm = GMM(n_components=k, random_state=1).fit(gradient)
     # y_pred = gmm.predict(gradient)
     if mask == False:
         cluster = np.zeros((k, node_num))
@@ -94,9 +94,7 @@ def training(class_model, optimizer_class, loss_class, train_iter, test_iter, ta
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer_class, T_0=10, T_mult=2, eta_min=5e-5)
     # *len(data_iter)
     train_loss = []
-    # loss_domain = nn.CrossEntropyLoss()
     class_model.train()
-    # discri_model.train()
     max_alpha_protoloss = 0.2  # 0.3
     max_alpha_mmdloss = 0.002
     print("--------------------start to train!--------------------")
@@ -131,22 +129,16 @@ def training(class_model, optimizer_class, loss_class, train_iter, test_iter, ta
             edge = src_edge.to(torch.float32).cuda()
             src_1_mmd, src_fea, y_hat, src_domain_hat = class_model(fcdata, edge, ROI_belong)  # 将数据输入网络  , fea_4center
             tar_1_mmd, tar_fea, tar_hat, tar_domain_hat = class_model(tar_FC, tar_edge, ROI_belong)
-            # src_site_c = (src_site_c-1).long().cuda()
-            # tar_domain_label = torch.ones(len(tar_domain_hat)).long().cuda()
-            # src_domain_label = torch.zeros(len(src_domain_hat)).long().cuda()
             optimizer_class.zero_grad()
             # label = torch.argmax(labels, dim=1)
             loss_c = loss_class(y_hat, labels)  # 计算loss值
             closs = centerloss(labels, src_domain_hat)
-            # loss_src_domain = loss_class(src_domain_hat, src_site_c)
             loss_mmd_1 = mmd_poincare(src_fea, tar_fea)
             loss_mmd_2 = mmd_poincare(src_1_mmd, tar_1_mmd)
             loss_mmd = mmd_poincare(src_domain_hat, tar_domain_hat)
-            # loss_mcc = mcc_loss(tar_hat, temperature=2.0)
             tar_train_predict = torch.argmax(tar_hat, dim=1)
             train_bat_proto = compute_category_prototypes_tensor(src_domain_hat, labels, 2)
             tar_bat_proto = compute_category_prototypes_tensor(tar_domain_hat, tar_train_predict, 2)
-            # loss_ad = loss_class(src_domain_hat, src_domain_label)+loss_class(tar_domain_hat, tar_domain_label)
             loss_proto_align = hyperbolic_prototype_loss(train_bat_proto, tar_bat_proto)
             loss_fea = loss_c +prototype_loss_weight * loss_proto_align+mmd_loss_weight * (loss_mmd + loss_mmd_1 + loss_mmd_2)  #
             # +args.lambda_closs*closs  loss_mmd_1
@@ -161,15 +153,10 @@ def training(class_model, optimizer_class, loss_class, train_iter, test_iter, ta
             # domain_predict = torch.argmax(domain_pred, dim=1)
 
             running_total_loss += loss_fea.item()
-            running_loss_c += loss_c.item()  # 将每轮的loss求和
-            # running_loss_d += loss_domain.item()
+            running_loss_c += loss_c.item()
             equals = predict == labels
-            # equals_adj = predict_adj == labels
-            # equals_d = domain_predict == site_label
 
             train_acc += torch.mean(equals.type(torch.FloatTensor))
-            # train_acc_adj += torch.mean(equals_adj.type(torch.FloatTensor))
-            # domain_acc += torch.mean(equals_d.type(torch.FloatTensor))
             train_fea_type = src_domain_hat.cpu().detach().numpy()
 
             for sub_i in range(len(labels)):
@@ -181,17 +168,9 @@ def training(class_model, optimizer_class, loss_class, train_iter, test_iter, ta
                 train_label.append(labels[sub_i].tolist())
         ASD_prototype = np.array(ASD_prototype)
         CN_prototype = np.array(CN_prototype)
-        ASD_centers = compute_category_prototype(ASD_prototype)  # kmeans(ASD_prototype)  #
+        ASD_centers = compute_category_prototype(ASD_prototype)
         CN_centers = compute_category_prototype(CN_prototype)
 
-        # tar_ASD_prototype = torch.stack(tar_ASD_prototype)
-        # tar_CN_prototype = torch.stack(tar_CN_prototype)
-        # tar_ASD_centers = compute_category_prototype_tensor(tar_ASD_prototype)  # kmeans(ASD_prototype)  #
-        # tar_CN_centers = compute_category_prototype_tensor(tar_CN_prototype)
-        # proto_align_loss = 0.05*hyperbolic_prototype_loss([ASD_centers, CN_centers], [tar_ASD_centers, tar_CN_centers])
-        # optimizer_class.zero_grad()  # 清空分类损失的梯度
-        # proto_align_loss.backward()  # 反向传播原型对齐损失
-        # optimizer_class.step()  # 更新模型参数
         train_loss.append(running_loss_c / len(train_iter))
         print("epoch: {}/{}-- ".format(e + 1, args.epoch),
               "train_loss: {:.4f}-- ".format(running_loss_c / len(train_iter)),
@@ -202,18 +181,18 @@ def training(class_model, optimizer_class, loss_class, train_iter, test_iter, ta
               # "proto_align_loss: {:.4f}".format(proto_align_loss*0.05)
               )
         true_label = []
-        with torch.no_grad():  # 验证时不记录梯度
-            class_model.eval()  # 评估模式
+        with torch.no_grad():
+            class_model.eval()
             labels_valid_ls = []
             predict_valid_ls = []
             predict_valid_adj = []
             valid_fea_type = []
-            for fcdata_valid, labels_valid, edge_valid, info_data, site_c_test in test_iter:  # 小批量读取数据
+            for fcdata_valid, labels_valid, edge_valid, info_data, site_c_test in test_iter:
                 labels_valid = labels_valid.float().cuda()
                 info_data = info_data.float().cuda()
                 fcdata_valid = fcdata_valid.to(torch.float32).cuda()
                 edge_valid = edge_valid.to(torch.float32).cuda()
-                _2, _, y_hat, _1 = class_model(fcdata_valid, edge_valid, ROI_belong)  # 将数据输入网络  , fea_4center
+                _2, _, y_hat, _1 = class_model(fcdata_valid, edge_valid, ROI_belong)
                 optimizer_class.zero_grad()
                 predict = torch.argmax(y_hat, dim=1)
                 # predict_adj = torch.argmax(adj_class, dim=1)
@@ -253,34 +232,22 @@ def training(class_model, optimizer_class, loss_class, train_iter, test_iter, ta
             f1_s_type = f1_score(true_label, label_type)
             print("prototype---acc: {:.4f}...sen: {:.4f}...spec: {:.4f}...f1: {:.4f}".format(acc_type, senci_type,
                                                                                              spec_type, f1_s_type))
-            # f1_adj = f1_score(labels_valid_ls, predict_valid_adj)
-            # print("valid_loss: {:.4f}.. ".format(valid_loss / len(test_iter)),
-            #       "valid_acc: {:.4f}".format(valid_acc / len(test_iter)))
             if acc >= best_valid_acc:
-                # torch.save(class_model.state_dict(),
-                #            "/SD1/luoyq/model_pth/hyperbolic_domain/UCLA_model_hlinear_fold_{}.pth".format(fold_i))
                 best_valid_acc = acc
                 best_valid_sen = senci
                 best_valid_spe = spec
                 best_valid_f1 = f1_s
             if acc_type >= best_validtype_acc:
-                # torch.save(class_model.state_dict(),
-                #            "/SD1/luoyq/model_pth/hyperbolic_domain/UCLA_model_prototype_fold_{}.pth".format(fold_i))
                 best_validtype_acc = acc_type
                 best_validtype_sen = senci_type
                 best_validtype_spe = spec_type
                 best_validtype_f1 = f1_s_type
             print("hyplinear---acc: {:.4f}...sen: {:.4f}...spec: {:.4f}...f1: {:.4f}".format(acc, senci, spec, f1_s))
-            # print("adj: acc: {:.4f}...sen: {:.4f}...spec: {:.4f}...f1: {:.4f}".format(acc_adj, senci_adj, spec_adj,
-            #                                                                           f1_adj))
             if e == args.epoch - 1:
                 total_valid_sen.append(senci)
                 total_valid_f1.append(f1_s)
                 total_valid_spe.append(spec)
                 total_valid_acc.append(acc)
-        # "center loss: {:.4f}------".format(running_closs/len(data_iter)),
-        #               "total_loss: {:.4f}".format(running_total_loss/len(data_iter))
-    # torch.save(class_model.state_dict(), "/SD1/luoyq/model_pth/MSB_Net/model_data_{}.pth".format(i))
     # plt.figure(figsize=(15, 10), dpi=100)
     # plt.plot(range(1, args.epoch + 1), train_loss, color='r', linestyle='--', label='loss')
     # plt.title("Train loss vs epoch-{}".format(args.epoch), fontsize=30)
@@ -344,26 +311,14 @@ def load_domain_data(dict_4domain, edge, fold):
     target_indices = indices_by_site[0]
     train_t, test_t = split_indices(target_indices, n_splits=5, fold=fold)
 
-    # # 其他站点划分
-    # train_s, test_s = [], []
-    # for site in range(1, 4):
-    #     train, test = split_indices(indices_by_site[site], n_splits=5, fold=fold)
-    #     train_s.append(train)
-    #     test_s.append(test)
 
     # 合并训练集和测试集
     train_indices = list(indices_by_site[1]) + list(indices_by_site[2]) + list(indices_by_site[3])
-
-    # 用于每个站点取1/5作为测试集
-    # test_t = np.concatenate([test_t] + test_s)
-    # train_indices = np.concatenate(train_s)
 
     # 提取训练集、目标域和测试集
     FC_train, class_labels_train, edge_train, info_data_train, site_labels_train = (
         FC_data[train_indices], class_labels[train_indices],
         edge[train_indices], info_data[train_indices], site_labels[train_indices])
-    # edge_mask = F_score_mask(FC_train, class_labels_train)
-    # edge_train = edge_train*edge_mask
 
     FC_target, class_labels_target, edge_target, info_data_target, site_labels_target = (
     FC_data[train_t], class_labels[train_t],
@@ -372,8 +327,6 @@ def load_domain_data(dict_4domain, edge, fold):
                                                                                edge[test_t], info_data[test_t],
                                                                                site_labels[test_t])
 
-    # edge_target = edge_target * edge_mask
-    # edge_test = edge_test * edge_mask
     train_data = myDataset(FC_train, class_labels_train, edge_train, info_data_train, site_labels_train)
     test_data = myDataset(FC_test, class_labels_test, edge_test, info_data_test, site_labels_test)
     target_data = myDataset(FC_target, class_labels_target, edge_target, info_data_target, site_labels_target)
@@ -385,19 +338,14 @@ def load_domain_data(dict_4domain, edge, fold):
 
 def main(args, ROI_belong):
     setup_seed(args.seed)
-    # FC_data = np.load(r"./data/FC.npy")
-    # site_labels = np.load(r"./data/site_label.npy")
-    # class_labels = np.load(r"./data/class_label.npy")
-    # edge = np.load("/SD1/luoyq/shuffle_good/Fscore_edge.npy")
-    dict_4domain = np.load("/SD1/luoyq/ABIDE_site_data/dict_4domain.npy", allow_pickle=True).item()
-    FC_data = dict_4domain["fc"]
+    dict_4domain = np.load("./ABIDE_site_data/dict_4domain.npy", allow_pickle=True).item()
+    FC_data = dict_4domain["fc"]   # shape: num, 116, 116
     site_labels = dict_4domain["site_labels"]
     class_labels = dict_4domain["label"]
     info_data = dict_4domain["info"]
-    edge = np.load(r"/SD1/luoyq/ABIDE_site_data/edge_indicidual_10.npy")  # edge_indicidual_15.npy   KNN_hyper_15%
+    edge = np.load(r"./ABIDE_site_data/edge_indicidual_10.npy")
 
     k_cluster = 7
-    # Fc_4comm = FC_data[:, 1:108:2, 1:108:2]
     cluster_gra = gradient_avg_mask(FC_data, k_cluster, mask=False)
     node_num4comm = []
     for community_i in range(len(cluster_gra)):
@@ -410,22 +358,14 @@ def main(args, ROI_belong):
         print("fold: {}".format(fold_count + 1))
         train_iter, test_iter, target_iter = load_domain_data(dict_4domain, edge, fold_count)
         target_iter = cycle(target_iter)
-        # federated setup
-        # class_model = feature_extractor(node_num4comm).to(device)
-        class_model = HyperbolicDomainAdaptLayer(node_num4comm, k=k_cluster).cuda()  # feature_extractor(node_num4comm).to(device)
+        class_model = HyperbolicDomainAdaptLayer(node_num4comm, k=k_cluster).cuda()
         optimizer_class = geoopt.optim.RiemannianAdam(class_model.parameters(), lr=0.0001)
         loss_class = nn.CrossEntropyLoss()  # FocalLoss()
-        # discri_model = AdversarialNetworkSp().to(device)
-        # optimizer_discrimination = optim.Adam(discri_model.parameters(), lr=0.0001)
-        # loss_discrimination = nn.CrossEntropyLoss()
         training(class_model, optimizer_class, loss_class, train_iter, test_iter, target_iter, fold_count)
 
         del class_model
-        # del discri_model
         del optimizer_class
-        # del optimizer_discrimination
         del loss_class
-        # del loss_discrimination
 
 
 # ==========================================================================
@@ -452,9 +392,6 @@ if __name__ == '__main__':
     global total_valid_fusion_sen, total_valid_fusion_spe, total_valid_fusion_f1, total_valid_fusion_acc
     total_valid_fusion_sen, total_valid_fusion_spe, total_valid_fusion_f1, total_valid_fusion_acc = [], [], [], []
 
-    # specify for dataset site
-    parser.add_argument('--split', type=int, default=1, help='select 0-4 fold')
-    # do not need to change
     parser.add_argument('--pace', type=int, default=50, help='communication pace')
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--type', type=str, default='G', help='Gaussian or Lap')
@@ -468,20 +405,8 @@ if __name__ == '__main__':
     parser.add_argument('--lambda_adloss', type=float, default=0.3)
     parser.add_argument('--lambda_closs', type=float, default=0.02)
     parser.add_argument('--lambda_protoalign', type=float, default=0.2, help='the weight of prototype align')
-    parser.add_argument('--nsteps', type=int, default=100, help='training steps/epoach')
-    parser.add_argument('-tbs1', '--test_batch_size1', type=int, default=145, help='NYU test batch size')
-    parser.add_argument('-tbs2', '--test_batch_size2', type=int, default=265, help='UM test batch size')
-    parser.add_argument('-tbs3', '--test_batch_size3', type=int, default=205, help='USM test batch size')
-    parser.add_argument('-tbs4', '--test_batch_size4', type=int, default=85, help='UCLA test batch size')
-    parser.add_argument('--overlap', type=bool, default=True, help='augmentation method')
-    parser.add_argument('--sepnorm', type=bool, default=False, help='normalization method')
-    parser.add_argument('--id_dir', type=str, default='./idx')
-    parser.add_argument('--res_dir', type=str, default='./result/align_overlap')
-    parser.add_argument('--vec_dir', type=str, default='')  # ./data/HO_vector_overlap
-    parser.add_argument('--model_dir', type=str, default='./model/align_overlap')
 
     args = parser.parse_args()
-    assert args.split in [0, 1, 2, 3, 4]
     print("7 comm 2gradient")
     # cluster_gra = gradient_avg_mask(FC_aal, k_cluster, mask=False)
     ROI_belong = {}
@@ -506,9 +431,3 @@ if __name__ == '__main__':
             torch.mean(torch.tensor(np.array(total_validtype_spec))),
             torch.mean(torch.tensor(np.array(total_validtype_f1)))))
 
-    # print(
-    #     "tar_fusion---valid_acc_best: {:.4f}...valid_sen_best: {:.4f}...valid_spec_best: {:.4f}...valid_f1_best: {:.4f}".format(
-    #         torch.mean(torch.tensor(np.array(total_valid_fusion_acc))),
-    #         torch.mean(torch.tensor(np.array(total_valid_fusion_sen))),
-    #         torch.mean(torch.tensor(np.array(total_valid_fusion_spe))),
-    #         torch.mean(torch.tensor(np.array(total_valid_fusion_f1)))))
